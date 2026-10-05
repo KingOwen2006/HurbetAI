@@ -1,4 +1,5 @@
 import os
+from torch._tensor import Tensor
 import urllib.request
 import re
 import tiktoken
@@ -141,7 +142,10 @@ class GPTDatasetV1(Dataset):
         return len(self.input_ids)
 
     def __getitem__(self, idx):
-        return self.input_ids[idx], self.target_ids[idx]
+        return (
+            torch.tensor(self.input_ids[idx], dtype=torch.long),
+            torch.tensor(self.target_ids[idx], dtype=torch.long),
+        )
 
 def create_dataloader_V1(txt, batch_size=4, max_length=25, stride=128, shuffle=True, drop_last=True, num_workers=0):
 
@@ -219,13 +223,53 @@ inputs, targets = next(dataloader_iter)
 token_embeddings = token_embedding_layer(inputs)
 print(token_embeddings.shape)
 
-torch.Size([8, 4, 256])
-
 context_length = max_length
 pos_embedding_layer = torch.nn.Embedding(context_length, output_dim)
 
-torch.arrange(max_length)
+pos_embeddings = pos_embedding_layer(torch.arange(max_length))
+print(pos_embedding_layer.weight)
 
-pos_embedding_layer = pos_embedding_layer(torch.arange(max_length))
+inputs = torch.tensor([
+    [0.43, 0.15, 0.89],  # your
+    [0.55, 0.87, 0.66],  # journey
+    [0.57, 0.85, 0.64],  # starts
+    [0.22, 0.58, 0.33],  # with
+    [0.77, 0.25, 0.10],  # one
+    [0.05, 0.80, 0.55],  # step
+])
 
-pos_embedding_layer.weight
+input_query = inputs[1]
+
+input_1 = inputs[0]
+
+print(torch.dot(input_query, input_1))
+
+for ele in inputs[0]:
+    print(ele)
+
+# res = 0
+
+i = 3
+res = torch.dot(inputs[i], input_query)
+
+for idx, element in enumerate(inputs[0]):
+    res += element * input_query[idx]
+
+print(res)
+
+query = inputs[1]
+
+attn_scores = torch.empty(inputs.shape[0])
+for i, x_i in enumerate(inputs):
+    attn_scores[i] = torch.dot(x_i, query)
+
+print(attn_scores)
+
+attn_weights_2_tmp = attn_scores / attn_scores.sum()
+
+def softmax_native(x):
+    return torch.exp(x) / torch.exp(x).sum(dim=0)
+
+softmax_native(attn_scores)
+
+torch.softmax(attn_scores, dim=0)
